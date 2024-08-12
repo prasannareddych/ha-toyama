@@ -1,5 +1,5 @@
 {
-    "domain": "toyamaworld",
+    "domain": "toyama",
     "name": "Toyama World",
     "iot_class": "local_push",
     "requirements": ["aiohttp"],
