@@ -6,6 +6,7 @@ class DeviceType(StrEnum):
     SWITCH = "onoff"
     FAN = "dimmer"
 
+
 @dataclass
 class Device:
     """API device."""
@@ -17,6 +18,7 @@ class Device:
     name: str
     state: int | bool
 
+
 DOMAIN = "toyama"
 TOYAMA_API_HOST = "https://api.toyamaworld.com"
 
@@ -24,3 +26,11 @@ PLATFORMS = [
     "switch",
     "fan"
 ]
+
+SPEED_MAP = {
+    0: 0,
+    25: 35,
+    50: 50,
+    75: 55,
+    100: 100,
+}

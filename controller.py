@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .api import ClientAPI, Device, DeviceType
+from .const import SPEED_MAP
 from .discovery import discover
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,9 +38,9 @@ class ToyamaDevice(Device):
 
     async def set_speed(self, value: int) -> None:
         if self.type == DeviceType.FAN:
-            if value not in [0,35,50,55,100]:
+            if value not in SPEED_MAP.keys():
                 raise ValueError(f"Invalid value: {value}")
-            await self.update_state(value)
+            await self.update_state(SPEED_MAP[value])
 
 
 class ToyamaController:
