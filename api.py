@@ -1,12 +1,12 @@
+import asyncio
+import json
+import logging
+import socket
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
 import aiohttp
-import asyncio
-import json
-import logging
-import socket
 
 _LOGGER = logging.getLogger(__name__)
 

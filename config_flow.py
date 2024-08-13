@@ -1,21 +1,13 @@
-from .api import (
-    Toyama,
-    APIAuthError
-)
-from .const import DOMAIN
-from homeassistant.config_entries import (
-    ConfigFlow,
-    ConfigFlowResult
-)
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-)
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+
+from .api import APIAuthError, Toyama
+from .const import DOMAIN
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
