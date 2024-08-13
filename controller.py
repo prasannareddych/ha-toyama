@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import socket
+import traceback
 from typing import Callable, Dict, List
 
 from homeassistant.config_entries import ConfigEntry
@@ -29,13 +30,13 @@ class ToyamaDevice(Device):
         return await self.api.update_device_state(self, new_state)
 
     async def on(self) -> None:
-        await self.update_state(100 if self.device_type == DeviceType.FAN else 1)
+        await self.update_state(100 if self.type == DeviceType.FAN else 1)
 
     async def off(self) -> None:
         await self.update_state(0)
 
-    async def set(self, value: int) -> None:
-        if self.device_type == DeviceType.FAN and value <= 4:
+    async def set_speed(self, value: int) -> None:
+        if self.type == DeviceType.FAN and value <= 4:
             _map = {0: 0, 1: 35, 2: 50, 3: 55, 4: 100}
             value = _map.get(value, value)
         elif value not in [0, 1] or value > 4:
@@ -97,7 +98,7 @@ class ToyamaController:
             while self._socket:
                 try:
                     data = await loop.sock_recv(self._socket, 1024)
-                    _LOGGER.info(f"Received data: {data}")
+                    # _LOGGER.debug(f"Received data: {data}")
                     update = json.loads(data)
                     await self.handle_update(update)
                 except BlockingIOError:
@@ -122,15 +123,30 @@ class ToyamaController:
             if update_type == 'single':
                 device_id = update['data']['subid']
                 state = update['data']['status']
-                device = self.device_dict.get(mac_id, {}).get(device_id)
-                if device and asyncio.iscoroutine(device.callback):
-                    await device.callback(state)
+                device = self.device_dict[mac_id][device_id]
+                if device and device.callback:
+                    try:
+                        device.callback(state)
+                    except Exception as e:
+                        _LOGGER.error(
+                            f"callback failed (single) - {device.name} {device.callback} {e}")
+                        _LOGGER.error("Stack trace:\n%s",
+                                      traceback.format_exc())
+
             elif update_type == 'all':
                 device_list = dict(
                     enumerate(update['data']['status'], start=17))
                 for device_id, state in device_list.items():
                     device = self.device_dict.get(mac_id, {}).get(device_id)
-                    if device and asyncio.iscoroutine(device.callback):
-                        await device.callback(state)
+                    if device and device.callback:
+                        try:
+                            device.callback(state)
+                        except Exception as e:
+                            _LOGGER.error(
+                                f"callback failed (all) - {device.name} {device.callback} {e}")
+                            _LOGGER.error("Stack trace:\n%s",
+                                          traceback.format_exc())
+        except KeyError:
+            pass
         except Exception as e:
             _LOGGER.error(f"State update failed: {e}, update: {update}")
