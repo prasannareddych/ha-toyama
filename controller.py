@@ -15,12 +15,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class ToyamaDevice(Device):
     api: ClientAPI = None
-    callback: Callable[[str, str, int], None] = None
+    callback: Callable[[int], None] = None
 
     def set_api(self, api: ClientAPI) -> None:
         self.api = api
 
-    def set_callback(self, callback: Callable[[str, str, int], None]) -> None:
+    def set_callback(self, callback: Callable[[int], None]) -> None:
         self.callback = callback
 
     async def update_state(self, new_state: int) -> bool:
@@ -64,7 +64,7 @@ class ToyamaController:
                                 room=room['room_name'],
                                 unique_id=f"{room['room_name']}_{
                                     board['mac_id']}_{toggle[0]}",
-                                device_type=toggle[4],
+                                type=toggle[4],
                                 state=0
                             )
                         )
@@ -109,14 +109,14 @@ class ToyamaController:
                 device_id = update['data']['subid']
                 state = update['data']['status']
                 device = self.device_dict.get(mac_id, {}).get(device_id)
-                if device and callable(device.callback):
+                if device and asyncio.iscoroutine(device.callback):
                     await device.callback(state)
             elif update_type == 'all':
                 device_list = dict(
                     enumerate(update['data']['status'], start=17))
                 for device_id, state in device_list.items():
                     device = self.device_dict.get(mac_id, {}).get(device_id)
-                    if device and callable(device.callback):
+                    if device and asyncio.iscoroutine(device.callback):
                         await device.callback(state)
         except Exception as e:
             _LOGGER.error(f"State update failed: {e}, update: {update}")
