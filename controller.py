@@ -49,8 +49,11 @@ class ToyamaController:
     devices: List[ToyamaDevice] = []
     device_dict: Dict[str, Dict[int, ToyamaDevice]] = {}
     mesh_ip: str
+    _socket: socket.socket = None  # Add socket attribute
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry):
+        self.clear_devices()
+
         device_info = config_entry.data['device_data']
         for zone in device_info:
             for room in zone.get('rooms', []):
@@ -79,26 +82,37 @@ class ToyamaController:
             self.device_dict[device.mac_id][device.id] = device
             device.set_api(self.api)
 
+    def clear_devices(self):
+        """Clear existing devices to avoid duplication."""
+        self.devices = []
+        self.device_dict = {}
+
     async def listen_device_updates(self) -> None:
         loop = asyncio.get_running_loop()
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.bind(('0.0.0.0', 56000))
         self._socket.setblocking(False)
-        self._stop_event = asyncio.Event()
 
-        while not self._stop_event.is_set():
-            try:
-                data = await loop.sock_recv(self._socket, 1024)
-                _LOGGER.debug(f"Received data: {data}")
-                update = json.loads(data)
-                await self.handle_update(update)
-            except BlockingIOError:
-                await asyncio.sleep(1)
-            except Exception as e:
-                _LOGGER.error(f"Failed to receive update: {e}")
+        try:
+            while self._socket:
+                try:
+                    data = await loop.sock_recv(self._socket, 1024)
+                    _LOGGER.info(f"Received data: {data}")
+                    update = json.loads(data)
+                    await self.handle_update(update)
+                except BlockingIOError:
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    _LOGGER.error(f"Failed to receive update: {e}")
+        finally:
+            if self._socket:
+                self._socket.close()  # Ensure the socket is closed on exit
 
-        self._socket.close()
-        _LOGGER.debug("Socket closed.")
+    async def stop(self):
+        """Stop the Toyama controller and clean up resources."""
+        if self._socket:
+            self._socket.close()
+            self._socket = None
 
     async def handle_update(self, update: dict) -> None:
         """Handle the device update."""
@@ -120,12 +134,3 @@ class ToyamaController:
                         await device.callback(state)
         except Exception as e:
             _LOGGER.error(f"State update failed: {e}, update: {update}")
-
-    async def stop(self) -> None:
-        """Gracefully stop the listener and clean up resources."""
-        if hasattr(self, '_stop_event'):
-            _LOGGER.debug("Stopping listener...")
-            self._stop_event.set()
-            # Wait for the listener to stop
-            await asyncio.sleep(1)
-            _LOGGER.debug("Listener stopped.")
