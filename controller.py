@@ -36,12 +36,10 @@ class ToyamaDevice(Device):
         await self.update_state(0)
 
     async def set_speed(self, value: int) -> None:
-        if self.type == DeviceType.FAN and value <= 4:
-            _map = {0: 0, 1: 35, 2: 50, 3: 55, 4: 100}
-            value = _map.get(value, value)
-        elif value not in [0, 1] or value > 4:
-            raise ValueError(f"Invalid value: {value}")
-        await self.update_state(value)
+        if self.type == DeviceType.FAN:
+            if value not in [0,35,50,55,100]:
+                raise ValueError(f"Invalid value: {value}")
+            await self.update_state(value)
 
 
 class ToyamaController:
