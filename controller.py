@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import socket
-from typing import Callable
+from typing import Callable, Dict, List
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -46,15 +46,15 @@ class ToyamaDevice(Device):
 class ToyamaController:
     """Setup the devices and manage them"""
     api: ClientAPI
-    devices: list[ToyamaDevice] = []
-    device_dict: dict = {}
+    devices: List[ToyamaDevice] = []
+    device_dict: Dict[str, Dict[int, ToyamaDevice]] = {}
     mesh_ip: str
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry):
         device_info = config_entry.data['device_data']
         for zone in device_info:
-            for room in zone.get('rooms'):
-                for board in room.get('boards'):
+            for room in zone.get('rooms', []):
+                for board in room.get('boards', []):
                     for toggle in board['toggles']:
                         self.devices.append(
                             ToyamaDevice(
@@ -81,19 +81,24 @@ class ToyamaController:
 
     async def listen_device_updates(self) -> None:
         loop = asyncio.get_running_loop()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('0.0.0.0', 56000))
-        sock.setblocking(False)
-        while True:
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket.bind(('0.0.0.0', 56000))
+        self._socket.setblocking(False)
+        self._stop_event = asyncio.Event()
+
+        while not self._stop_event.is_set():
             try:
-                data = await loop.sock_recv(sock, 1024)
-                _LOGGER.info(f"Received data: {data}")
+                data = await loop.sock_recv(self._socket, 1024)
+                _LOGGER.debug(f"Received data: {data}")
                 update = json.loads(data)
                 await self.handle_update(update)
             except BlockingIOError:
                 await asyncio.sleep(1)
             except Exception as e:
                 _LOGGER.error(f"Failed to receive update: {e}")
+
+        self._socket.close()
+        _LOGGER.debug("Socket closed.")
 
     async def handle_update(self, update: dict) -> None:
         """Handle the device update."""
@@ -103,24 +108,24 @@ class ToyamaController:
             if update_type == 'single':
                 device_id = update['data']['subid']
                 state = update['data']['status']
-                try:
-                    device = self.device_dict[mac_id][device_id]
-                    if callable(device.callback):
-                        await device.callback(state)
-                except KeyError as e:
-                    _LOGGER.debug(f"mac_id={mac_id} sub_id={
-                                  device_id} keyerror: {e}")
-
+                device = self.device_dict.get(mac_id, {}).get(device_id)
+                if device and callable(device.callback):
+                    await device.callback(state)
             elif update_type == 'all':
                 device_list = dict(
                     enumerate(update['data']['status'], start=17))
                 for device_id, state in device_list.items():
-                    try:
-                        device = self.device_dict[mac_id][device_id]
-                        if callable(device.callback):
-                            await device.callback(state)
-                    except KeyError as e:
-                        _LOGGER.debug(f"mac_id={mac_id} sub_id={
-                                      device_id} keyerror: {e}")
+                    device = self.device_dict.get(mac_id, {}).get(device_id)
+                    if device and callable(device.callback):
+                        await device.callback(state)
         except Exception as e:
             _LOGGER.error(f"State update failed: {e}, update: {update}")
+
+    async def stop(self) -> None:
+        """Gracefully stop the listener and clean up resources."""
+        if hasattr(self, '_stop_event'):
+            _LOGGER.debug("Stopping listener...")
+            self._stop_event.set()
+            # Wait for the listener to stop
+            await asyncio.sleep(1)
+            _LOGGER.debug("Listener stopped.")
