@@ -1,17 +1,19 @@
 import logging
 
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 from .api import DeviceType
+from .base import ToyamaBaseEntity
 from .const import DOMAIN
 from .controller import ToyamaDevice
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up the Toyama switches."""
     controller = hass.data.get(DOMAIN)
     if not controller:
@@ -23,7 +25,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(switches, update_before_add=True)
 
 
-class ToyamaSwitch(SwitchEntity):
+class ToyamaSwitch(SwitchEntity, ToyamaBaseEntity):
     """Representation of a Toyama Switch."""
 
     _attr_device_class = SwitchDeviceClass.SWITCH
@@ -32,35 +34,6 @@ class ToyamaSwitch(SwitchEntity):
         """Initialize the switch."""
         self._device = device
         self._device.set_callback(self._handle_update)
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return DeviceInfo(
-            name=self._device.name,
-
-            manufacturer="Toyama World",
-            model="115",
-            sw_version="0.0.1",
-            suggested_area=self._device.room,
-            identifiers={
-                (
-                    DOMAIN,
-                    self._device.room,
-                    self._device.name,
-                )
-            },
-        )
-
-    @property
-    def unique_id(self) -> str:
-        """Return unique id."""
-        return self._device.unique_id
-
-    @property
-    def name(self) -> str:
-        """Return the name of the switch."""
-        return self._device.name
 
     @property
     def is_on(self) -> bool:
