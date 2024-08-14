@@ -1,12 +1,12 @@
 import logging
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import DeviceType
-from .base import ToyamaBaseEntity
 from .const import DOMAIN, SPEED_MAP
 from .controller import ToyamaDevice
 
@@ -28,7 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     async_add_entities(fans, update_before_add=True)
 
 
-class ToyamaFan(FanEntity, ToyamaBaseEntity):
+class ToyamaFan(FanEntity):
     """Representation of a Toyama Fan."""
 
     _attr_supported_features = FanEntityFeature.SET_SPEED
@@ -38,6 +38,34 @@ class ToyamaFan(FanEntity, ToyamaBaseEntity):
         self._device = device
         self._device.set_callback(self._handle_update)
         self.last_state = None
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information."""
+        return DeviceInfo(
+            name=self._device.name,
+            manufacturer="Toyama World",
+            model="Toyama Control",
+            sw_version="0.0.1",
+            suggested_area=self._device.room,
+            identifiers={
+                (
+                    DOMAIN,
+                    self._device.room,
+                    self._device.unique_id,
+                )
+            },
+        )
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique id."""
+        return self._device.unique_id
+
+    @property
+    def name(self) -> str:
+        """Return the name of the fan."""
+        return self._device.name
 
     @property
     def is_on(self) -> bool:
