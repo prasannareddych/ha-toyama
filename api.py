@@ -12,9 +12,11 @@ _LOGGER = logging.getLogger(__name__)
 
 TOYAMA_API_HOST = 'https://api.toyamaworld.com'
 
+
 class DeviceType(StrEnum):
     FAN = "dimmer"
     SWITCH = "onoff"
+
 
 @dataclass
 class Device:
@@ -27,8 +29,9 @@ class Device:
     name: str
     state: int | bool
 
+
 class Toyama:
-    def __init__(self, username, password, access_token = None):
+    def __init__(self, username, password, access_token=None):
         self.username = username
         self.password = password
         self.access_token = access_token
@@ -36,6 +39,7 @@ class Toyama:
             "User-Agent": "Dart/3.2 (dart:io)",
             'Authorization': f"Bearer {self.access_token}"
         })
+
     async def initialize(self) -> None:
         """check access token validity and login if it is expired."""
         if not await self.is_token_valid():
@@ -51,7 +55,7 @@ class Toyama:
         try:
             url = f"{TOYAMA_API_HOST}/api/v1/gateways/list"
             async with aiohttp.ClientSession() as session:
-                async with session.get(url = url, headers = self.headers) as response:
+                async with session.get(url=url, headers=self.headers) as response:
                     if response.status == 200:
                         return True
                     return False
@@ -89,11 +93,12 @@ class Toyama:
                             'Authorization': f"Bearer {self.access_token}"
                         })
                     else:
-                        raise APIAuthError("Error connecting to api. Invalid username or password.")
+                        raise APIAuthError(
+                            "Error connecting to api. Invalid username or password.")
         except Exception as e:
             _LOGGER.error(f"login: {e}")
             raise
-            
+
     async def fetch_gateways(self) -> list:
         """fetch gateways in your account."""
 
@@ -186,28 +191,30 @@ class Toyama:
                 data = await self.fetch_gateway_info(gateway['serial'])
                 for zone in data[0]['zones']:
                     for room in zone['rooms']:
-                        room_name = room['name'].replace(" ","_")
+                        room_name = room['name'].replace(" ", "_")
                         for boards in room['legacy_devices']:
                             mac_id = boards['mac_id']
                             for b in boards['legacy_device_buttons']:
                                 device_id = int(b['button_number'])+16
                                 my_devices.append(
                                     Device(
-                                        id = device_id,
-                                        mac_id = mac_id,
-                                        room = room_name,
-                                        unique_id = f"{room_name}_{mac_id}_{device_id}",
-                                        type = b['variant'],
-                                        name = b['name'],
-                                        state = b['percentage']
+                                        id=device_id,
+                                        mac_id=mac_id,
+                                        room=room_name,
+                                        unique_id=f"{room_name}_{mac_id}_{device_id}",
+                                        type=b['variant'],
+                                        name=b['name'],
+                                        state=b['percentage']
                                     )
                                 )
             return my_devices
         except Exception as e:
             raise APIError(f"Failed to get device list: {e}")
 
+
 class APIAuthError(Exception):
     """Exception class for auth error."""
+
 
 class APIError(Exception):
     """Exception class for API error."""
@@ -224,7 +231,6 @@ class ClientAPI:
             loop = asyncio.get_running_loop()
             self._task = loop.create_task(self.listen_device_updates())
             await self.request_all_devices_status()
-
 
     async def send_request(self, payload: dict) -> bool:
         async with aiohttp.ClientSession() as session:
@@ -272,7 +278,7 @@ class ClientAPI:
         except Exception as e:
             _LOGGER.error(f"request_all_devices_status: FAIL! {e}")
             return False
-        
+
     async def listen_device_updates(self):
         loop = asyncio.get_running_loop()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -289,4 +295,3 @@ class ClientAPI:
                 await asyncio.sleep(1)
             except Exception as e:
                 _LOGGER.error(f"Failed to receive update: {e}")
-
