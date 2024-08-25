@@ -23,6 +23,7 @@ class Device:
     """API device."""
     id: int
     mac_id: str
+    server_id: int
     room: str
     unique_id: str
     type: DeviceType
@@ -37,6 +38,7 @@ class Toyama:
         self.access_token = access_token
         self.headers = ({
             "User-Agent": "Dart/3.2 (dart:io)",
+            "content-type": "application/json; charset=utf-8",
             'Authorization': f"Bearer {self.access_token}"
         })
 
@@ -200,6 +202,7 @@ class Toyama:
                                     Device(
                                         id=device_id,
                                         mac_id=mac_id,
+                                        server_id=b['id'],
                                         room=room_name,
                                         unique_id=f"{room_name}_{mac_id}_{device_id}",
                                         type=b['variant'],
@@ -210,6 +213,21 @@ class Toyama:
             return my_devices
         except Exception as e:
             raise APIError(f"Failed to get device list: {e}")
+
+    async def update_button_name(self, gateway_id: int, button_id: int, new_name: str) -> None:
+        """update visual name of button"""
+        data = {
+            "legacy_device": {
+                "gateway_id": str(gateway_id),
+                "new_name": new_name,
+                "id": str(button_id)
+            }
+        }
+        url = f"{TOYAMA_API_HOST}/api/v1/legacy_devices/rename_button"
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            res = await session.post(url, data=json.dumps(data))
+            if res.status != 200:
+                raise Exception("Error updating button name")
 
 
 class APIAuthError(Exception):
