@@ -1,0 +1,13 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "description": "Please enter WizHom credentials",
+                "data": {
+                    "username": "email id",
+                    "password": "password"
+                }
+            }
+        }
+    }
+}
