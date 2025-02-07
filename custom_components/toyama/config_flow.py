@@ -2,11 +2,12 @@ import logging
 from typing import Any, Dict, Optional
 
 import voluptuous as vol
-from homeassistant.components import onboarding, zeroconf
+from homeassistant.components import onboarding
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from toyama_api.api import AuthorizationError, Toyama
 from .const import DOMAIN
@@ -31,7 +32,7 @@ class ToyamaConfigFlow(ConfigFlow, domain=DOMAIN):
         self.title: str = "Toyama HomeAssistant Integration"
 
     async def async_step_zeroconf(
-        self, discovery_info: zeroconf.ZeroconfServiceInfo
+        self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         """
         Handle zeroconf discovery.
