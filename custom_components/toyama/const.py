@@ -1,4 +1,5 @@
 DOMAIN = "toyama"
+DISCOVERY_SERVICE_NAME = "_toyama._tcp.local."
 
 PLATFORMS = [
     "switch",
@@ -7,4 +8,4 @@ PLATFORMS = [
 
 MANUFACTURER = "Toyama Smart Switches"
 MODEL = "TouchArt"
-VERSION = "0.1.1"
+VERSION = "0.1.2"

@@ -1,6 +1,6 @@
 """Toyama World Integration"""
 from __future__ import annotations
-
+import asyncio
 import logging
 from typing import Any, Dict
 
@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN, PLATFORMS
+from .const import DOMAIN, PLATFORMS, DISCOVERY_SERVICE_NAME
 from .controller import ToyamaController
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +34,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Forward the entry setup to the platforms defined in const.PLATFORMS
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    await controller.gateway_handler.request_all_devices_status()
+    try:
+        await controller.gateway_handler.request_all_devices_status()
+    except asyncio.TimeoutError:
+        _LOGGER.error("Toyama devices status request failed.")
+        
     _LOGGER.debug("Toyama component setup complete.")
     return True
 
@@ -43,6 +47,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     controller = hass.data.get(DOMAIN)
     await controller.stop()
+    controller.cancel_ip_check()
     hass.data.pop(DOMAIN)
 
     unload_success = True
